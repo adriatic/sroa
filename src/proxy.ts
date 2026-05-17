@@ -10,9 +10,12 @@ const ALLOWED_EMAILS = [
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    const { userId, sessionClaims } = await auth.protect();
-    const email = sessionClaims?.email as string;
-    if (!ALLOWED_EMAILS.includes(email)) {
+    const { sessionClaims } = await auth.protect();
+    const email = (sessionClaims?.email ?? 
+                   sessionClaims?.primary_email_address ?? 
+                   (sessionClaims as any)?.['https://www.sroa.site/email']) as string;
+    
+    if (email && !ALLOWED_EMAILS.includes(email)) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
   }
