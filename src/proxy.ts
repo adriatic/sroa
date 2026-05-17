@@ -1,12 +1,20 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)"]);
+
+const ALLOWED_EMAILS = [
+  "nikolaj.ivancic@gmail.com",
+  "marina.ivancic@gmail.com",
+];
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isPublicRoute(req)) return;
   if (isProtectedRoute(req)) {
-    await auth.protect();
+    const { userId, sessionClaims } = await auth.protect();
+    const email = sessionClaims?.email as string;
+    if (!ALLOWED_EMAILS.includes(email)) {
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
   }
 });
 
