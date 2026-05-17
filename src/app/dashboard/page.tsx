@@ -166,6 +166,7 @@ function getBadgeClass(priority: string) {
 export default function DashboardPage() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [sent, setSent] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<string | null>(null);
 
   function toggle(id: number) {
     setExpanded(prev => prev === id ? null : id);
@@ -204,12 +205,12 @@ export default function DashboardPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '2rem' }}>
           {[
-            { label: 'STAT', value: stat, color: '#ef4444' },
-            { label: 'Same day', value: p1, color: '#f59e0b' },
-            { label: 'Routine', value: p2, color: '#3b82f6' },
-            { label: 'Filtered', value: other, color: 'rgba(255,255,255,0.3)' },
+            { label: 'STAT', value: stat, color: '#ef4444', key: 'stat' },
+            { label: 'Same day', value: p1, color: '#f59e0b', key: 'p1' },
+            { label: 'Routine', value: p2, color: '#3b82f6', key: 'p2' },
+            { label: 'Filtered', value: other, color: 'rgba(255,255,255,0.3)', key: 'other' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '1rem' }}>
+            <div key={s.label} onClick={() => setFilter(filter === s.key ? null : s.key)} style={{ background: filter === s.key ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${filter === s.key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}>
               <div style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{s.label}</div>
               <div style={{ fontSize: '1.8rem', fontWeight: 500, color: s.color }}>{s.value}</div>
             </div>
@@ -218,7 +219,11 @@ export default function DashboardPage() {
 
         {/* Email list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {emails.map(email => {
+          {emails.filter(e => {
+            if (!filter) return true;
+            if (filter === 'other') return e.priority === 'p3' || e.priority === 'spam';
+            return e.priority === filter;
+          }).map(email => {
             const isExpanded = expanded === email.id;
             const isSent = sent.has(email.id);
             return (
