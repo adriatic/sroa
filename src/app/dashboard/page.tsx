@@ -4,6 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
 const emails = [
   {
     id: 0, priority: 'stat', badge: 'STAT',
@@ -150,191 +152,358 @@ Zoo New England`,
   }
 ];
 
-const badgeStyles: Record<string, string> = {
-  stat: 'bg-red-100 text-red-800',
-  p1:   'bg-amber-100 text-amber-800',
-  p2:   'bg-blue-100 text-blue-800',
-  p2r:  'bg-blue-100 text-blue-800',
-  p3:   'bg-gray-100 text-gray-600',
-  spam: 'bg-gray-100 text-gray-400',
+const voicemails = [
+  {
+    id: 0, priority: 'stat', badge: 'STAT',
+    caller: 'Dr. James Okafor', org: 'SeaWorld San Diego',
+    time: '6:58 AM', duration: '1:12',
+    transcript: `Dr. Ivančić, this is James Okafor calling from SeaWorld San Diego. I have a dolphin in acute respiratory distress — 14-year-old female Pacific white-sided, been declining since about 4 AM. I'm going to send you an email with the full details and upload DICOMs but I wanted to call first. Please call me back as soon as you get this. My direct line is 619-555-0147. This is urgent. Thank you.`,
+    note: `STAT callback — Dr. Okafor, SeaWorld SD. Dolphin in respiratory distress. DICOMs being uploaded. Call 619-555-0147 immediately.`,
+    keywords: ['urgent', 'acute', 'distress']
+  },
+  {
+    id: 1, priority: 'p1', badge: 'P1 — callback today',
+    caller: 'Dr. Sandra Voss', org: 'Chicago Zoological Society',
+    time: '8:03 AM', duration: '0:48',
+    transcript: `Hi Marina, it's Sandra at Brookfield Zoo. We have a great ape case I'd like to discuss before submitting formally — it's a 19-year-old male western lowland gorilla with some subtle pulmonary findings on recent chest films. Not urgent but I want your read before we present to the team Thursday. Can you give me a call when you have a moment? Thanks so much.`,
+    note: `Callback — Dr. Voss, Brookfield Zoo. Gorilla pulmonary case, needs discussion before Thursday team meeting. Not urgent.`,
+    keywords: ['gorilla', 'pulmonary', 'thursday']
+  },
+  {
+    id: 2, priority: 'p2', badge: 'P2 — routine',
+    caller: 'Unknown', org: 'Georgia Aquarium',
+    time: '9:44 AM', duration: '0:31',
+    transcript: `Hello, this message is for Dr. Ivančić. I'm calling from the Georgia Aquarium veterinary team. We submitted a case about two weeks ago for a whale shark and we haven't received a report. Could someone please call us back to give us a status update? Our number is 404-555-0233. Thank you.`,
+    note: `Status inquiry — Georgia Aquarium, whale shark case, ~2 weeks pending. Call 404-555-0233. Check case queue.`,
+    keywords: ['status', 'whale shark', 'two weeks']
+  },
+  {
+    id: 3, priority: 'p3', badge: 'P3 — no action',
+    caller: 'Unknown', org: '',
+    time: '7:15 AM', duration: '0:22',
+    transcript: `Hi this message is for the office manager. I'm calling about scheduling a lunch meeting to discuss our new PACS software solution. Please call us back at your convenience at 1-800-555-9100.`,
+    note: `Vendor call — PACS software sales. No action required.`,
+    keywords: []
+  }
+];
+
+const briefing = {
+  date: 'Saturday, May 17, 2026',
+  time: '7:00 AM',
+  pending: [
+    { case: 'Whale shark — Georgia Aquarium', submitted: 'May 3', age: '14 days', status: 'overdue' },
+    { case: 'Giraffe — Dallas Zoo', submitted: 'May 13', age: '4 days', status: 'due today' },
+    { case: 'Snow leopard — Omaha Zoo', submitted: 'May 15', age: '2 days', status: 'in progress' },
+    { case: 'Manatee — Tampa Aquarium', submitted: 'May 16', age: '1 day', status: 'in progress' },
+  ],
+  newToday: [
+    'Beluga whale referral — Shedd Aquarium (Dr. Mehta)',
+    'STAT dolphin case — SeaWorld San Diego (Dr. Okafor)',
+  ],
+  calls: [
+    'Dr. Okafor — SeaWorld San Diego (STAT)',
+    'Dr. Voss — Brookfield Zoo (gorilla case, before Thursday)',
+    'Georgia Aquarium — status inquiry',
+  ],
+  insight: 'You have 2 overdue or same-day reports. Clearing the whale shark case first will resolve the oldest outstanding inquiry and the voicemail from Georgia Aquarium.'
 };
 
-function getBadgeClass(priority: string) {
-  return badgeStyles[priority] ?? badgeStyles['p3'];
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function badgeStyle(priority: string): React.CSSProperties {
+  const map: Record<string, React.CSSProperties> = {
+    stat:  { background: 'rgba(239,68,68,0.15)',   color: '#f87171' },
+    p1:    { background: 'rgba(245,158,11,0.15)',  color: '#fbbf24' },
+    p2:    { background: 'rgba(59,130,246,0.15)',  color: '#60a5fa' },
+    p3:    { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+    spam:  { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' },
+  };
+  return { fontSize: '10px', fontWeight: 600 as const, letterSpacing: '0.06em', padding: '3px 8px', borderRadius: '4px', whiteSpace: 'nowrap' as const, ...map[priority] };
 }
 
-export default function DashboardPage() {
+function statColor(key: string) {
+  if (key === 'stat') return '#ef4444';
+  if (key === 'p1')   return '#f59e0b';
+  if (key === 'p2')   return '#3b82f6';
+  return 'rgba(255,255,255,0.3)';
+}
+
+function statCard(active: boolean): React.CSSProperties {
+  return {
+    background: active ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`,
+    borderRadius: '8px', padding: '1rem', cursor: 'pointer', transition: 'all 0.2s',
+  };
+}
+
+function row(isExpanded: boolean): React.CSSProperties {
+  return {
+    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${isExpanded ? 'rgba(46,184,194,0.3)' : 'rgba(255,255,255,0.07)'}`,
+    borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.2s',
+  };
+}
+
+// ─── TAB BUTTON ──────────────────────────────────────────────────────────────
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '0.75rem 1.5rem', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+      background: 'transparent', border: 'none',
+      borderBottom: active ? '2px solid #2eb8c2' : '2px solid transparent',
+      color: active ? '#2eb8c2' : 'rgba(255,255,255,0.4)',
+      transition: 'all 0.2s', marginBottom: '-1px',
+    }}>{label}</button>
+  );
+}
+
+// ─── APPROVE BUTTON ──────────────────────────────────────────────────────────
+
+function ApproveBtn({ id, label, sent, onApprove }: { id: number; label: string; sent: Set<number>; onApprove: (e: React.MouseEvent, id: number) => void }) {
+  if (sent.has(id)) {
+    return <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', padding: '6px 14px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px' }}>✓ {label}</span>;
+  }
+  return (
+    <button onClick={e => onApprove(e, id)} style={{ fontSize: '12px', fontWeight: 500, cursor: 'pointer', padding: '6px 16px', borderRadius: '6px', background: 'rgba(46,184,194,0.15)', color: '#2eb8c2', border: '1px solid rgba(46,184,194,0.3)' }}>
+      ✓ Approve &amp; send
+    </button>
+  );
+}
+
+// ─── EMAIL TAB ───────────────────────────────────────────────────────────────
+
+function EmailTab() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [sent, setSent] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<string | null>(null);
 
-  function toggle(id: number) {
-    setExpanded(prev => prev === id ? null : id);
-  }
+  const counts = { stat: emails.filter(e => e.priority === 'stat').length, p1: emails.filter(e => e.priority === 'p1').length, p2: emails.filter(e => e.priority === 'p2').length, other: emails.filter(e => e.priority === 'p3' || e.priority === 'spam').length };
 
-  function approve(e: React.MouseEvent, id: number) {
-    e.stopPropagation();
-    setSent(prev => new Set(prev).add(id));
-  }
+  const visible = emails.filter(e => {
+    if (!filter) return true;
+    if (filter === 'other') return e.priority === 'p3' || e.priority === 'spam';
+    return e.priority === filter;
+  });
 
-  const stat  = emails.filter(e => e.priority === 'stat').length;
-  const p1    = emails.filter(e => e.priority === 'p1').length;
-  const p2    = emails.filter(e => e.priority === 'p2').length;
-  const other = emails.filter(e => e.priority === 'p3' || e.priority === 'spam').length;
+  return (
+    <>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 400, marginBottom: '0.25rem' }}>Inbox triage — today</h1>
+        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', margin: 0 }}>AI-prioritized · {emails.length} messages · May 17, 2026 · 9:04 AM · Click a card to filter</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '2rem' }}>
+        {([['STAT', counts.stat, 'stat'], ['Same day', counts.p1, 'p1'], ['Routine', counts.p2, 'p2'], ['Filtered', counts.other, 'other']] as [string, number, string][]).map(([label, value, key]) => (
+          <div key={key} onClick={() => setFilter(filter === key ? null : key)} style={statCard(filter === key)}>
+            <div style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{label}</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 500, color: statColor(key) }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+        {visible.map(email => {
+          const isExpanded = expanded === email.id;
+          return (
+            <div key={email.id} onClick={() => setExpanded(isExpanded ? null : email.id)} style={row(isExpanded)}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', alignItems: 'center', padding: '12px 16px' }}>
+                <span style={badgeStyle(email.priority)}>{email.badge}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>
+                    {email.sender}{email.org ? <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}> · {email.org}</span> : null}
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{email.subject}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' as const }}>{email.time}</span>
+                  <span style={{ display: 'inline-block', fontSize: '16px', color: 'rgba(255,255,255,0.3)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
+                </div>
+              </div>
+              {isExpanded && (
+                <div onClick={e => e.stopPropagation()} style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '16px' }}>
+                  <pre style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, whiteSpace: 'pre-wrap' as const, fontFamily: 'inherit', marginBottom: '16px' }}>{email.body}</pre>
+                  {email.draft ? (
+                    <>
+                      <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#2eb8c2', marginBottom: '8px' }}>✦ AI draft reply — awaiting approval</div>
+                      <pre style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, whiteSpace: 'pre-wrap' as const, fontFamily: 'inherit', background: 'rgba(46,184,194,0.06)', border: '1px solid rgba(46,184,194,0.15)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>{email.draft}</pre>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <ApproveBtn id={email.id} label="Sent" sent={sent} onApprove={(e, id) => { e.stopPropagation(); setSent(prev => new Set(prev).add(id)); }} />
+                        <button style={{ fontSize: '12px', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px', background: 'transparent', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>Edit before sending</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
+                      {email.priority === 'p3' || email.priority === 'spam' ? 'No reply needed — low priority or filtered.' : 'No draft available — manual reply required.'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ─── VOICEMAIL TAB ───────────────────────────────────────────────────────────
+
+function VoicemailTab() {
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [called, setCalled] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<string | null>(null);
+
+  const counts = { stat: voicemails.filter(v => v.priority === 'stat').length, p1: voicemails.filter(v => v.priority === 'p1').length, p2: voicemails.filter(v => v.priority === 'p2').length, other: voicemails.filter(v => v.priority === 'p3').length };
+
+  const visible = voicemails.filter(v => {
+    if (!filter) return true;
+    if (filter === 'other') return v.priority === 'p3';
+    return v.priority === filter;
+  });
+
+  return (
+    <>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 400, marginBottom: '0.25rem' }}>Voicemail triage — today</h1>
+        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', margin: 0 }}>AI-transcribed &amp; prioritized · {voicemails.length} messages · May 17, 2026 · 9:04 AM · Click a card to filter</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '2rem' }}>
+        {([['STAT callback', counts.stat, 'stat'], ['Call today', counts.p1, 'p1'], ['Routine', counts.p2, 'p2'], ['No action', counts.other, 'other']] as [string, number, string][]).map(([label, value, key]) => (
+          <div key={key} onClick={() => setFilter(filter === key ? null : key)} style={statCard(filter === key)}>
+            <div style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{label}</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 500, color: statColor(key) }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+        {visible.map(vm => {
+          const isExpanded = expanded === vm.id;
+          return (
+            <div key={vm.id} onClick={() => setExpanded(isExpanded ? null : vm.id)} style={row(isExpanded)}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', alignItems: 'center', padding: '12px 16px' }}>
+                <span style={badgeStyle(vm.priority)}>{vm.badge}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>
+                    {vm.caller}{vm.org ? <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}> · {vm.org}</span> : null}
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>
+                    {vm.keywords.length > 0
+                      ? <>{vm.keywords.map((k, i) => <span key={i} style={{ background: 'rgba(46,184,194,0.12)', color: '#2eb8c2', fontSize: '11px', padding: '1px 6px', borderRadius: '3px', marginRight: '4px' }}>{k}</span>)}</>
+                      : 'No clinical keywords'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' as const }}>{vm.time} · {vm.duration}</span>
+                  <span style={{ display: 'inline-block', fontSize: '16px', color: 'rgba(255,255,255,0.3)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
+                </div>
+              </div>
+              {isExpanded && (
+                <div onClick={e => e.stopPropagation()} style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '16px' }}>
+                  <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.3)', marginBottom: '8px' }}>Transcript</div>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '16px', fontStyle: 'italic' }}>"{vm.transcript}"</p>
+                  <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#2eb8c2', marginBottom: '8px' }}>✦ AI callback note</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', background: 'rgba(46,184,194,0.06)', border: '1px solid rgba(46,184,194,0.15)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>{vm.note}</div>
+                  {vm.priority !== 'p3' && (
+                    <ApproveBtn id={vm.id} label="Marked called" sent={called} onApprove={(e, id) => { e.stopPropagation(); setCalled(prev => new Set(prev).add(id)); }} />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ─── BRIEFING TAB ────────────────────────────────────────────────────────────
+
+function BriefingTab() {
+  return (
+    <>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 400, marginBottom: '0.25rem' }}>Morning briefing</h1>
+        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', margin: 0 }}>{briefing.date} · Generated at {briefing.time}</p>
+      </div>
+
+      <div style={{ background: 'rgba(46,184,194,0.08)', border: '1px solid rgba(46,184,194,0.2)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <span style={{ fontSize: '18px', marginTop: '2px' }}>✦</span>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, margin: 0 }}>{briefing.insight}</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1.25rem' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)', marginBottom: '1rem' }}>Pending cases</div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '12px' }}>
+            {briefing.pending.map((c, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>{c.case}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Submitted {c.submitted} · {c.age}</div>
+                </div>
+                <span style={{ fontSize: '10px', fontWeight: 600 as const, padding: '2px 8px', borderRadius: '4px', whiteSpace: 'nowrap' as const, background: c.status === 'overdue' ? 'rgba(239,68,68,0.15)' : c.status === 'due today' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.1)', color: c.status === 'overdue' ? '#f87171' : c.status === 'due today' ? '#fbbf24' : '#60a5fa' }}>{c.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '1rem' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1.25rem' }}>
+            <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)', marginBottom: '1rem' }}>New today</div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+              {briefing.newToday.map((n, i) => (
+                <div key={i} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <span style={{ color: '#2eb8c2', marginTop: '2px' }}>+</span>{n}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1.25rem' }}>
+            <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)', marginBottom: '1rem' }}>Calls to make</div>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
+              {briefing.calls.map((c, i) => (
+                <div key={i} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <span style={{ color: '#fbbf24', marginTop: '2px' }}>→</span>{c}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'center' as const, marginTop: '2rem' }}>
+        Briefing generated automatically from email, voicemail, and case queue · Powered by Claude
+      </p>
+    </>
+  );
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const [tab, setTab] = useState<'email' | 'voicemail' | 'briefing'>('briefing');
 
   return (
     <main style={{ minHeight: '100vh', background: '#0a1628', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
-
-      {/* Top bar */}
       <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '1.2rem', color: '#2eb8c2', letterSpacing: '0.1em' }}>ZooRadOne</div>
-        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Office Automation · Demo</div>
-        <a href="/" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>← Back to site</a>
+        <a href="/" style={{ fontFamily: 'Georgia, serif', fontSize: '1.2rem', color: '#2eb8c2', letterSpacing: '0.1em', textDecoration: 'none' }}>ZooRadOne</a>
+        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>Office Automation · Demo</div>
+        <a href="/" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>← Back to site</a>
       </div>
 
-      <div style={{ maxWidth: '860px', margin: '0 auto', padding: '2.5rem 2rem' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 400, marginBottom: '0.25rem' }}>Inbox triage — today</h1>
-          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-            AI-prioritized · {emails.length} messages · May 17, 2026 · 9:04 AM
-          </p>
+      <div style={{ maxWidth: '880px', margin: '0 auto', padding: '2.5rem 2rem' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '2rem' }}>
+          <TabButton label="☀ Morning briefing" active={tab === 'briefing'} onClick={() => setTab('briefing')} />
+          <TabButton label="✉ Email triage"     active={tab === 'email'}    onClick={() => setTab('email')} />
+          <TabButton label="✆ Voicemail"        active={tab === 'voicemail'} onClick={() => setTab('voicemail')} />
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '2rem' }}>
-          {[
-            { label: 'STAT', value: stat, color: '#ef4444', key: 'stat' },
-            { label: 'Same day', value: p1, color: '#f59e0b', key: 'p1' },
-            { label: 'Routine', value: p2, color: '#3b82f6', key: 'p2' },
-            { label: 'Filtered', value: other, color: 'rgba(255,255,255,0.3)', key: 'other' },
-          ].map(s => (
-            <div key={s.label} onClick={() => setFilter(filter === s.key ? null : s.key)} style={{ background: filter === s.key ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${filter === s.key ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', padding: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}>
-              <div style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>{s.label}</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 500, color: s.color }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Email list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {emails.filter(e => {
-            if (!filter) return true;
-            if (filter === 'other') return e.priority === 'p3' || e.priority === 'spam';
-            return e.priority === filter;
-          }).map(email => {
-            const isExpanded = expanded === email.id;
-            const isSent = sent.has(email.id);
-            return (
-              <div
-                key={email.id}
-                onClick={() => toggle(email.id)}
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${isExpanded ? 'rgba(46,184,194,0.3)' : 'rgba(255,255,255,0.07)'}`,
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s',
-                }}
-              >
-                {/* Summary row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '12px', alignItems: 'center', padding: '12px 16px' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em',
-                    padding: '3px 8px', borderRadius: '4px',
-                    background: email.priority === 'stat' ? 'rgba(239,68,68,0.15)' :
-                                email.priority === 'p1'   ? 'rgba(245,158,11,0.15)' :
-                                email.priority === 'p2'   ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
-                    color:      email.priority === 'stat' ? '#f87171' :
-                                email.priority === 'p1'   ? '#fbbf24' :
-                                email.priority === 'p2'   ? '#60a5fa' : 'rgba(255,255,255,0.3)',
-                    whiteSpace: 'nowrap',
-                  }}>{email.badge}</span>
-
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>
-                      {email.sender}{email.org ? <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}> · {email.org}</span> : null}
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {email.subject}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' }}>{email.time}</span>
-                    <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.3)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>⌄</span>
-                  </div>
-                </div>
-
-                {/* Expanded detail */}
-                {isExpanded && (
-                  <div
-                    onClick={e => e.stopPropagation()}
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '16px' }}
-                  >
-                    <pre style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit', marginBottom: '16px' }}>
-                      {email.body}
-                    </pre>
-
-                    {email.draft ? (
-                      <>
-                        <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2eb8c2', marginBottom: '8px' }}>
-                          ✦ AI draft reply — awaiting approval
-                        </div>
-                        <pre style={{
-                          fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.7,
-                          whiteSpace: 'pre-wrap', fontFamily: 'inherit',
-                          background: 'rgba(46,184,194,0.06)', border: '1px solid rgba(46,184,194,0.15)',
-                          borderRadius: '8px', padding: '12px', marginBottom: '12px'
-                        }}>
-                          {email.draft}
-                        </pre>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {isSent ? (
-                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', padding: '6px 14px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px' }}>
-                              ✓ Sent
-                            </span>
-                          ) : (
-                            <button
-                              onClick={e => approve(e, email.id)}
-                              style={{
-                                fontSize: '12px', fontWeight: 500, cursor: 'pointer',
-                                padding: '6px 16px', borderRadius: '6px',
-                                background: 'rgba(46,184,194,0.15)', color: '#2eb8c2',
-                                border: '1px solid rgba(46,184,194,0.3)',
-                              }}
-                            >
-                              ✓ Approve &amp; send
-                            </button>
-                          )}
-                          <button style={{
-                            fontSize: '12px', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px',
-                            background: 'transparent', color: 'rgba(255,255,255,0.4)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                          }}>
-                            Edit before sending
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>
-                        {email.priority === 'p3' || email.priority === 'spam'
-                          ? 'No reply needed — low priority or filtered.'
-                          : 'No draft available — manual reply required.'}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: '3rem' }}>
-          This is a simulation of office automation powered by Claude · ZooRadOne SROA Demo
-        </p>
+        {tab === 'briefing'  && <BriefingTab />}
+        {tab === 'email'     && <EmailTab />}
+        {tab === 'voicemail' && <VoicemailTab />}
       </div>
     </main>
   );
