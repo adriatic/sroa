@@ -260,13 +260,13 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 // ─── APPROVE BUTTON ──────────────────────────────────────────────────────────
 
-function ApproveBtn({ id, label, sent, onApprove }: { id: number; label: string; sent: Set<number>; onApprove: (e: React.MouseEvent, id: number) => void }) {
+function ApproveBtn({ id, label, actionLabel, sent, onApprove }: { id: number; label: string; actionLabel: string; sent: Set<number>; onApprove: (e: React.MouseEvent, id: number) => void }) {
   if (sent.has(id)) {
     return <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', padding: '6px 14px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px' }}>✓ {label}</span>;
   }
   return (
     <button onClick={e => onApprove(e, id)} style={{ fontSize: '12px', fontWeight: 500, cursor: 'pointer', padding: '6px 16px', borderRadius: '6px', background: 'rgba(46,184,194,0.15)', color: '#2eb8c2', border: '1px solid rgba(46,184,194,0.3)' }}>
-      ✓ Approve &amp; send
+      ✓ {actionLabel}
     </button>
   );
 }
@@ -328,7 +328,7 @@ function EmailTab() {
                       <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#2eb8c2', marginBottom: '8px' }}>✦ AI draft reply — awaiting approval</div>
                       <pre style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, whiteSpace: 'pre-wrap' as const, fontFamily: 'inherit', background: 'rgba(46,184,194,0.06)', border: '1px solid rgba(46,184,194,0.15)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>{email.draft}</pre>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <ApproveBtn id={email.id} label="Sent" sent={sent} onApprove={(e, id) => { e.stopPropagation(); setSent(prev => new Set(prev).add(id)); }} />
+                        <ApproveBtn id={email.id} label="Sent" actionLabel="Approve &amp; send" sent={sent} onApprove={(e, id) => { e.stopPropagation(); setSent(prev => new Set(prev).add(id)); }} />
                         <button style={{ fontSize: '12px', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px', background: 'transparent', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>Edit before sending</button>
                       </div>
                     </>
@@ -407,7 +407,7 @@ function VoicemailTab() {
                   <div style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#2eb8c2', marginBottom: '8px' }}>✦ AI callback note</div>
                   <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', background: 'rgba(46,184,194,0.06)', border: '1px solid rgba(46,184,194,0.15)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>{vm.note}</div>
                   {vm.priority !== 'p3' && (
-                    <ApproveBtn id={vm.id} label="Marked called" sent={called} onApprove={(e, id) => { e.stopPropagation(); setCalled(prev => new Set(prev).add(id)); }} />
+                    <ApproveBtn id={vm.id} label="Marked called" actionLabel="Mark as called" sent={called} onApprove={(e, id) => { e.stopPropagation(); setCalled(prev => new Set(prev).add(id)); }} />
                   )}
                 </div>
               )}
